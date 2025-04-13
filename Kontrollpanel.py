@@ -27,9 +27,11 @@ rl_schuko_1 = Pin(10, Pin.OUT) #NO
 rl_schuko_2 = Pin(11, Pin.OUT) #NO
 rl_schuko_3 = Pin(12, Pin.OUT) #NO
 rl_schuko_4 = Pin(13, Pin.OUT) #NO
+rl_schuko_5 = Pin(14, Pin.OUT) #NO
 
-taster_schuko12 = Pin(16, Pin.IN)
-taster_schuko34 = Pin(18, Pin.IN)
+schalter_display= Pin (35, Pin.IN, Pin.PULL_DOWN)
+taster_schuko12 = Pin(37, Pin.IN, Pin.PULL_DOWN)
+taster_schuko34 = Pin(39, Pin.IN, Pin.PULL_DOWN)
 
 
 #---------------- Variablen ----------------#
@@ -49,15 +51,22 @@ time_irq_schuko34 = 0
 shelly_energy = {}
 
 #---------------- MQTT-Konfiguration ----------------#
-MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers! 
+#MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
+MQTT_SERVER = "10.10.14.20"
 CLIENT_ID_relais = "ESP_Relais"
 CLIENT_ID_shelly = "ESP_Shelly"
 MQTT_TOPIC_relais = "dashboard_switch"
 MQTT_TOPIC_shelly = "shelly"
 
-WIFI_SSID = "502-Bad-Gateway"
-WIFI_PASSWORD = "66813838796323588312"
+# @home
+#WIFI_SSID = "502-Bad-Gateway"
+#WIFI_PASSWORD = "66813838796323588312"
 
+# @hoeb
+WIFI_SSID = "WLAN-HOEB-Gast"
+WIFI_PASSWORD = "hoeb202344"
+
+# @BZTG
 # WIFI_SSID = "BZTG-IoT" 
 # WIFI_PASSWORD = "WerderBremen24"
 

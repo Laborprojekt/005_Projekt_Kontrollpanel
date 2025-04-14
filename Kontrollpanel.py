@@ -14,12 +14,14 @@ Hardware:
 - ST7789V3, 1.69", 240x280p
 '''
 
-from machine import Pin, SoftI2C
+from machine import Pin, SoftI2C, SoftSPI
 import utime
 import ujson
 import network
 from umqtt.simple import MQTTClient
 import aht10
+import st7789py as st7789
+import vga2_16x16 as font
 
 #---------------- Pin ----------------#
 
@@ -36,6 +38,29 @@ taster_schuko34 = Pin(39, Pin.IN, Pin.PULL_DOWN)
 
 i2c = SoftI2C(sda = 41, scl = 42)
 
+########## SPI Bus konfigurieren ##########
+
+spi = SoftSPI(
+        baudrate=40000000,
+        polarity=1,
+        phase=0,
+        sck=Pin(4),    # scl
+        mosi=Pin(5),   # sda
+        miso=Pin(0))    # wird nicht angeschlossen
+
+# Falls die SPI Pins falsch sind, "print (machine.SPI(1))" gibt die Pinnummern vom ESP aus
+
+########## DisplayObjekt erstellen ##########
+
+tft = st7789.ST7789(
+        spi,
+        240,
+        320,
+        reset=Pin(6, Pin.OUT),
+        cs=Pin(15, Pin.OUT),
+        dc=Pin(7, Pin.OUT),
+        backlight=Pin(16, Pin.OUT),
+        rotation=1)
 
 #---------------- Variablen ----------------#
 
@@ -51,7 +76,13 @@ schuko4 = False
 time_irq_schuko12 = 0
 time_irq_schuko34 = 0
 
+
+voltage, current, power, energy, mid_temp, mid_hum  = 0, 0, 0, 0, 0, 0
+prev_voltage, prev_current, prev_power, prev_energy, prev_temp, prev_hum  = 0, 0, 0, 0, 0, 0
+
 shelly_energy = {}
+
+
 
 # Sensor
 aht = aht10.AHT10(i2c = i2c)
@@ -63,6 +94,16 @@ last_aht_check = 0
 INTERVALL_MS_AHT = 10000
 
 INTERVALL_MS_TASTER = 2000
+
+# Display
+SNOWFLAKE ="*****************"
+BOOT = "boot successfull"
+CLEAR = "                             "
+START_TEXT = 35      # x
+START_TEXT_MEASUREMENT = 20
+SECUNDARY_TEXT = 140 # x
+# display_ontime = 0
+display_state = False
 
 #---------------- MQTT-Konfiguration ----------------#
 MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
@@ -81,7 +122,7 @@ WIFI_PASSWORD = "66813838796323588312"
 # WIFI_SSID = "BZTG-IoT" 
 # WIFI_PASSWORD = "WerderBremen24"
 
-BAUGRUPPE = "Kontrollpanel"
+BAUGRUPPE = "Kontrollpanel" # Info für JSON
 
 #---------------- Funktion zur Datenauswertung ------------- 
 def sub_relais(topic, msg):
@@ -142,10 +183,15 @@ def sub_relais(topic, msg):
 def sub_shelly(topic, msg):  
     daten = ujson.loads(msg) 
     
-    global shelly_energy
+    global shelly_energy, voltage, current, power, energy
     shelly_energy = daten
     
-    print(shelly_energy)
+    voltage = shelly_energy.get("voltage")
+    current = shelly_energy.get("current")
+    power = shelly_energy.get("power")
+    energy = shelly_energy.get("energy")
+    
+    print(shelly_energy, voltage, current, power, energy)
 
 
 def mqtt_publish(json_data, topic):
@@ -176,12 +222,13 @@ def schuko12_irq(pin):
         schuko2 = schuko12
         
         time_irq_schuko12 = timestamp
-    
+   
+   
 def schuko34_irq(pin):
     global schuko34, schuko3, schuko4, time_irq_schuko34
     timestamp = utime.ticks_ms()
     
-    if timestamp - time_irq_schuko12 >= INTERVALL_MS_TASTER:
+    if timestamp - time_irq_schuko34 >= INTERVALL_MS_TASTER:
         print("schuko34 interrupt")
         
         schuko34 = not schuko34
@@ -190,7 +237,8 @@ def schuko34_irq(pin):
         schuko4 = schuko34
         
         time_irq_schuko34 = timestamp
-        
+     
+     
 def mittelwert (value, value_list):
     value_sum = 0
     
@@ -215,6 +263,7 @@ def mittelwert (value, value_list):
      
     return mittelwert, value_list
 
+
 def store_data(timestamp, mid_temp, mid_hum):
 
     json_raw = {
@@ -231,6 +280,41 @@ def store_data(timestamp, mid_temp, mid_hum):
 
     return json_data
     
+def clear_boot():
+    tft.fill_rect(0,105,320,25, st7789.BLACK) #x,y,width,height
+    
+    
+def log_display(text):
+    
+    tft.text(font, CLEAR , START_TEXT, 90, st7789.WHITE, st7789.BLACK)
+    tft.text(font, "- LOG -" , 100, 90, st7789.WHITE, st7789.BLACK)    
+    
+    tft.text(font, CLEAR , START_TEXT, 120, st7789.WHITE, st7789.BLACK)
+    tft.text(font, text , START_TEXT, 120, st7789.WHITE, st7789.BLACK)
+    
+    
+def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerhalb des interrupt verwenden zu können
+    
+    if tft.backlight.value() == 0:
+        
+        global display_state
+        
+        display_state = True
+        print(display_state)
+        print("Display on")
+        
+    else:
+        display_off()
+        
+def display_off(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerhalb des interrupt verwenden zu können
+    
+    global display_state
+    
+    display_state = False
+    tft.backlight.value(0)
+    tft.fill(st7789.BLACK)
+    tft.sleep_mode(True)
+    print("Display off")
 
 #---------------- Funktion WIFI -------------------------------------------
 def connectWIFI(): 
@@ -244,27 +328,50 @@ def connectWIFI():
 
 
 #---------------- Interrupts ---------------------------------------------- 
+schalter_display.irq(trigger = Pin.IRQ_RISING or Pin.IRQ_FALLING, handler = show_display)
+#schalter_display.irq(trigger = Pin.IRQ_FALLING, handler = display_off)
 taster_schuko12.irq(trigger = Pin.IRQ_FALLING, handler = schuko12_irq)
 taster_schuko34.irq(trigger = Pin.IRQ_FALLING, handler = schuko34_irq)
 
 
+#---------------- Boot Display --------------------------------------------
+tft.backlight.value(1)
+tft.fill(st7789.BLACK)
+
+tft.text(font, SNOWFLAKE , 20, 30, st7789.WHITE, st7789.BLACK)
+tft.text(font, BOOT , 35, 110, st7789.WHITE, st7789.BLACK)
+tft.text(font, SNOWFLAKE , 20, 190, st7789.WHITE, st7789.BLACK)
+
+utime.sleep(1)
+clear_boot()
+
+
 # -------- MQTT-Client erzeugen, Callback festlegen und Topic abonnieren --
-    
+   
 connectWIFI()
 
 mqtt_relais = MQTTClient(CLIENT_ID_relais, MQTT_SERVER)
 mqtt_relais.set_callback(sub_relais) 
 utime.sleep(1) 
 mqtt_relais.connect() 
-mqtt_relais.subscribe(MQTT_TOPIC_relais)  
+mqtt_relais.subscribe(MQTT_TOPIC_relais)
+log_display("- MQTT relais")
 print("MQTT relais verbunden!")
+
+utime.sleep(1)
 
 mqtt_shelly = MQTTClient(CLIENT_ID_shelly, MQTT_SERVER)
 mqtt_shelly.set_callback(sub_shelly) 
 utime.sleep(1) 
 mqtt_shelly.connect() 
-mqtt_shelly.subscribe(MQTT_TOPIC_shelly)  
+mqtt_shelly.subscribe(MQTT_TOPIC_shelly)
+
+log_display("- MQTT shelly")
 print("MQTT shelly verbunden!")
+
+utime.sleep(1)
+
+display_off()
 
 
 #---------------- Hauptprogramm ------------------------------------------- 
@@ -280,7 +387,7 @@ while True:
     rl_schuko_3.value(schuko3)
     rl_schuko_4.value(schuko4)
 
-#---------------- Relais schalten -----------------------------------------
+#---------------- AHT Messung ---------------------------------------------
     if utime.ticks_ms() - last_aht_check >= INTERVALL_MS_AHT:
         
         last_aht_check = utime.ticks_ms()
@@ -298,6 +405,54 @@ while True:
         json_data = store_data(timestamp, mid_temp, mid_hum)
         
         mqtt_publish(json_data, MQTT_TOPIC_AHT)
+        
         print("AHT data send")
-     
-
+        
+#---------------- Display einschalten -------------------------------------
+    if display_state == True:
+        
+        initial_run = False
+        
+        if tft.backlight.value() == 0:
+            # display_ontime = utime.ticks_ms()
+        
+            # Display einschalten
+            tft.backlight.value(1)
+            tft.sleep_mode(False)
+            
+            initial_run = True 
+            #initial_run = prev_temp == None # ändert den initial run parameter, wenn das display vorher ausgeschaltet war
+        
+        
+        if initial_run or voltage != prev_voltage:
+            prev_voltage = voltage
+            # Extra Leerzeichen sind zum überschreiben, falls vorheriger Wert mehr Zeichen hatte
+            tft.text(font, f"{voltage} V", START_TEXT_MEASUREMENT, 60, st7789.CYAN, st7789.BLACK)
+            
+        
+        if initial_run or current != prev_current:
+            prev_current = current
+            if current >=10:
+                current = round(current, 2)
+            tft.text(font, f"{current} A", START_TEXT_MEASUREMENT, 90, st7789.RED, st7789.BLACK)
+            prev_current = current
+            
+        if initial_run or power != prev_power:
+            prev_power = power
+            tft.text(font, f"{power} W               ", START_TEXT_MEASUREMENT, 120, st7789.YELLOW, st7789.BLACK)
+            
+            
+        if initial_run or energy != prev_energy:
+            prev_energy = energy
+            tft.text(font, f"{energy} Wh             ", START_TEXT_MEASUREMENT, 150, st7789.YELLOW, st7789.BLACK)
+            
+            
+        if initial_run or mid_temp != prev_temp:
+            prev_temp = mid_temp
+            tft.text(font, f"Temp:{mid_temp} C", SECUNDARY_TEXT, 60, st7789.GREEN, st7789.BLACK)
+            
+            
+        if initial_run or hum != prev_hum:
+            prev_hum = mid_hum
+            tft.text(font, f"Hum: {mid_hum} %", SECUNDARY_TEXT, 90, st7789.GREEN, st7789.BLACK)
+            

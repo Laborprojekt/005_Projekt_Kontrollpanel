@@ -37,8 +37,8 @@ function sendData() {
                     power: powerStatus.apower,  // Leistung (Watt)
                     voltage: powerStatus.voltage,  // Spannung (Volt)
                     current: powerStatus.current,  // Strom (Ampere)
-                    energy: powerStatus.aenergy.total  // Gesamtverbrauch (Wh)
-                    temp: powerStatus.temperature.tC // Temperatur des Moduls in Celsius
+                    energy: powerStatus.aenergy.total,  // Gesamtverbrauch (Wh)
+                    temp: powerStatus.temperature.tC, // Temperatur des Moduls in Celsius
                     switch_state: powerStatus.output // Schaltzustand des Relais
                 };
 

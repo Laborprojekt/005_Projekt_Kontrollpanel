@@ -103,7 +103,7 @@ START_TEXT = 35      # x
 START_TEXT_MEASUREMENT = 20
 SECUNDARY_TEXT = 140 # x
 INTERVALL_MS_DISPLAY_UPDATE = 6000 # Shelly sendet alle 10s Daten
-DISPLAY_SHUTDOWN_TIME_MS = 60000 # Zeit nach der sich das Display automatisch abschaltet
+DISPLAY_SHUTDOWN_TIME_MS = 180000 # Zeit nach der sich das Display automatisch abschaltet
 display_on_timestamp = 0 # Timestamp für automatische abschaltung
 display_state = False
 display_activation_time = 0 # Entprellung interrupt
@@ -306,7 +306,7 @@ def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außer
     
     time = utime.ticks_ms()
     
-    if time - display_activation_time >= 100:
+    if time - display_activation_time >= 3000:
         
         if tft.backlight.value() == 0:
             

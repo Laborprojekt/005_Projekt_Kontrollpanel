@@ -82,7 +82,7 @@ prev_voltage, prev_current, prev_power, prev_energy, prev_temp, prev_hum  = 0, 0
 
 shelly_energy = {}
 
-cycle_time = 0
+cycle_time_ms = 0
 
 # Sensor
 aht = aht10.AHT10(i2c = i2c)
@@ -104,7 +104,7 @@ START_TEXT_MEASUREMENT = 20
 SECUNDARY_TEXT = 140 # x
 INTERVALL_MS_DISPLAY_UPDATE = 6000 # Shelly sendet alle 10s Daten
 DISPLAY_SHUTDOWN_TIME_MS = 180000 # Zeit nach der sich das Display automatisch abschaltet
-display_on_timestamp = 0 # Timestamp für automatische abschaltung
+display_on_timestamp_ms = 0 # Timestamp für automatische abschaltung
 display_state = False
 display_activation_time = 0 # Entprellung interrupt
 display_update_time = 0 # Timestamp der letzten aktualisierung
@@ -117,16 +117,17 @@ CLIENT_ID_ESP = "ESP_send"
 MQTT_TOPIC_relais = "dashboard_switch"
 MQTT_TOPIC_shelly = "shelly"
 MQTT_TOPIC_AHT = "AHT"
+MQTT_TOPIC_LOG = "logs"
 
 # @home
-WIFI_SSID = "502-Bad-Gateway"
-WIFI_PASSWORD = "66813838796323588312"
-MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
+#WIFI_SSID = "502-Bad-Gateway"
+#WIFI_PASSWORD = "66813838796323588312"
+#MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
 
 # @BZTG
-# WIFI_SSID = "BZTG-IoT" 
-# WIFI_PASSWORD = "WerderBremen24"
-# MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
+WIFI_SSID = "BZTG-IoT" 
+WIFI_PASSWORD = "WerderBremen24"
+MQTT_SERVER = "192.168.1.195"   #Achtung: aktuelle Adresse des Brokers!
 
 BAUGRUPPE = "Kontrollpanel" # Info für JSON
 
@@ -328,6 +329,26 @@ def display_off(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerh
     tft.fill(st7789.BLACK)
     tft.sleep_mode(True)
     print("Display off")
+    
+def timestamp():
+    clock = utime.localtime()
+    timestamp = f"{clock[0]}-{clock[1]}-{clock[2]}T{clock[3]}:{clock[4]}:{clock[5]}_MEZ"
+    
+    return timestamp
+
+def log(eventtype, log_message):
+    
+    global MQTT_TOPIC_LOG
+    
+    json_raw = {
+            "eventtype" : eventtype,
+            "event_text" : log_message
+            }
+    
+    json_data = ujson.dumps(json_raw)
+    
+    mqtt_publish(json_data, MQTT_TOPIC_LOG)
+    
 
 #---------------- Funktion WIFI -------------------------------------------
 def connectWIFI(): 
@@ -370,6 +391,7 @@ utime.sleep(1)
 mqtt_relais.connect() 
 mqtt_relais.subscribe(MQTT_TOPIC_relais)
 log_display("- MQTT relais")
+log("MQTT", "mqtt relais verbunden")
 print("MQTT relais verbunden!")
 
 utime.sleep(1)
@@ -381,6 +403,7 @@ mqtt_shelly.connect()
 mqtt_shelly.subscribe(MQTT_TOPIC_shelly)
 
 log_display("- MQTT shelly")
+log("MQTT", "shelly verbunden")
 print("MQTT shelly verbunden!")
 
 utime.sleep(1)
@@ -390,10 +413,20 @@ display_off()
 
 #---------------- Hauptprogramm ------------------------------------------- 
 while True:
-    cycle_time = utime.ticks_ms() # Zykluszeit
+    cycle_time_ms = utime.ticks_ms() # Zykluszeit
     
-    mqtt_relais.check_msg()
-    mqtt_shelly.check_msg()
+    try:
+        mqtt_relais.check_msg()
+    
+    except Exception as e:
+        log("mqtt_relais check error", e)
+    
+    try:
+        mqtt_shelly.check_msg()
+    
+    except Exception as e:
+        log("mqtt_shelly check error", e)
+        
     utime.sleep(1)
 
 #---------------- Relais schalten ----------------------------------------- 
@@ -404,72 +437,77 @@ while True:
     rl_schuko_4.value(schuko4)
 
 #---------------- AHT Messung ---------------------------------------------
-    if cycle_time - last_aht_check >= INTERVALL_MS_AHT:
-        
-        last_aht_check = utime.ticks_ms()
-        # Messwerte erheben
-        temp = aht.temperature()
-        hum = aht.humidity()
-        
-        clock = utime.localtime()
-        timestamp = f"{clock[0]}-{clock[1]}-{clock[2]}T{clock[3]}:{clock[4]}:{clock[5]}_MEZ"
-        
-        # Mittelwerte bilden 
-        mid_temp, temp_list = mittelwert(temp, temp_list)
-        mid_hum, hum_list = mittelwert(hum, hum_list)
-        
-        json_data = store_data(timestamp, mid_temp, mid_hum)
-        
-        mqtt_publish(json_data, MQTT_TOPIC_AHT)
-        
-        print("AHT data send")
+    try:
+        if cycle_time_ms - last_aht_check >= INTERVALL_MS_AHT:
+            
+            last_aht_check = utime.ticks_ms()
+            # Messwerte erheben
+            temp = aht.temperature()
+            hum = aht.humidity()
+            
+            timestamp = timestamp()
+            
+            # Mittelwerte bilden 
+            mid_temp, temp_list = mittelwert(temp, temp_list)
+            mid_hum, hum_list = mittelwert(hum, hum_list)
+            
+            json_data = store_data(timestamp, mid_temp, mid_hum)
+            
+            mqtt_publish(json_data, MQTT_TOPIC_AHT)
+            
+            print("AHT data send")
+    except Exception as e:
+        log("AHT error", e)
         
 #---------------- Display einschalten -------------------------------------
-    if display_state == True and cycle_time - display_update_time >= INTERVALL_MS_DISPLAY_UPDATE:
+    try:
+        if display_state == True and cycle_time_ms - display_update_time >= INTERVALL_MS_DISPLAY_UPDATE:
+            
+            if cycle_time_ms - display_on_timestamp_ms <= DISPLAY_SHUTDOWN_TIME_MS: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
+            
+                initial_run = False
+                
+                if tft.backlight.value() == 0:
+                    display_on_timestamp_ms = utime.ticks_ms()
+                
+                    # Display einschalten
+                    tft.sleep_mode(False)
+                    tft.backlight.value(1)
+                    
+                    initial_run = True 
+                    #initial_run = prev_temp == None # ändert den initial run parameter, wenn das display vorher ausgeschaltet war
+                
+                # ----- Messwerte anzeigen und aktulisieren -----
+                if initial_run or voltage != prev_voltage:
+                    prev_voltage = voltage
+                    # Extra Leerzeichen sind zum überschreiben, falls vorheriger Wert mehr Zeichen hatte
+                    tft.text(font, f"{voltage} V", START_TEXT_MEASUREMENT, 60, st7789.CYAN, st7789.BLACK)
+                
+                if initial_run or current != prev_current:
+                    prev_current = current
+                    if current >=10: # Rundet Ströme ab 10A, um max. 4 Zahlen auf dem Display anzuzeigen
+                        current = round(current, 2)
+                    tft.text(font, f"{current} A", START_TEXT_MEASUREMENT, 90, st7789.RED, st7789.BLACK)
+                    prev_current = current
+                    
+                if initial_run or power != prev_power:
+                    prev_power = power
+                    tft.text(font, f"{power} W               ", START_TEXT_MEASUREMENT, 120, st7789.YELLOW, st7789.BLACK) 
+                    
+                if initial_run or energy != prev_energy:
+                    prev_energy = energy
+                    tft.text(font, f"{energy} Wh             ", START_TEXT_MEASUREMENT, 150, st7789.YELLOW, st7789.BLACK)            
+                    
+                if initial_run or mid_temp != prev_temp:
+                    prev_temp = mid_temp
+                    tft.text(font, f"Temp:{mid_temp} C", SECUNDARY_TEXT, 60, st7789.GREEN, st7789.BLACK)          
+                    
+                if initial_run or hum != prev_hum:
+                    prev_hum = mid_hum
+                    tft.text(font, f"Hum: {mid_hum} %", SECUNDARY_TEXT, 90, st7789.GREEN, st7789.BLACK)
         
-        if cycle_time - display_on_timestamp <= DISPLAY_SHUTDOWN_TIME_MS: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
+            else: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
+                display_off() 
         
-            initial_run = False
-            
-            if tft.backlight.value() == 0:
-                display_on_timestamp = utime.ticks_ms()
-            
-                # Display einschalten
-                tft.sleep_mode(False)
-                tft.backlight.value(1)
-                
-                initial_run = True 
-                #initial_run = prev_temp == None # ändert den initial run parameter, wenn das display vorher ausgeschaltet war
-            
-            # ----- Messwerte anzeigen und aktulisieren -----
-            if initial_run or voltage != prev_voltage:
-                prev_voltage = voltage
-                # Extra Leerzeichen sind zum überschreiben, falls vorheriger Wert mehr Zeichen hatte
-                tft.text(font, f"{voltage} V", START_TEXT_MEASUREMENT, 60, st7789.CYAN, st7789.BLACK)
-            
-            if initial_run or current != prev_current:
-                prev_current = current
-                if current >=10: # Rundet Ströme ab 10A, um max. 4 Zahlen auf dem Display anzuzeigen
-                    current = round(current, 2)
-                tft.text(font, f"{current} A", START_TEXT_MEASUREMENT, 90, st7789.RED, st7789.BLACK)
-                prev_current = current
-                
-            if initial_run or power != prev_power:
-                prev_power = power
-                tft.text(font, f"{power} W               ", START_TEXT_MEASUREMENT, 120, st7789.YELLOW, st7789.BLACK) 
-                
-            if initial_run or energy != prev_energy:
-                prev_energy = energy
-                tft.text(font, f"{energy} Wh             ", START_TEXT_MEASUREMENT, 150, st7789.YELLOW, st7789.BLACK)            
-                
-            if initial_run or mid_temp != prev_temp:
-                prev_temp = mid_temp
-                tft.text(font, f"Temp:{mid_temp} C", SECUNDARY_TEXT, 60, st7789.GREEN, st7789.BLACK)          
-                
-            if initial_run or hum != prev_hum:
-                prev_hum = mid_hum
-                tft.text(font, f"Hum: {mid_hum} %", SECUNDARY_TEXT, 90, st7789.GREEN, st7789.BLACK)
-        
-        else: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
-            display_off() 
-            
+    except Exception as e:
+        log("Display error", e)

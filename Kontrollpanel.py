@@ -120,14 +120,14 @@ MQTT_TOPIC_AHT = "AHT"
 MQTT_TOPIC_LOG = "logs"
 
 # @home
-#WIFI_SSID = "502-Bad-Gateway"
-#WIFI_PASSWORD = "66813838796323588312"
-#MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
+WIFI_SSID = "502-Bad-Gateway"
+WIFI_PASSWORD = "66813838796323588312"
+MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
 
 # @BZTG
-WIFI_SSID = "BZTG-IoT" 
-WIFI_PASSWORD = "WerderBremen24"
-MQTT_SERVER = "192.168.1.195"   #Achtung: aktuelle Adresse des Brokers!
+#WIFI_SSID = "BZTG-IoT" 
+#WIFI_PASSWORD = "WerderBremen24"
+#MQTT_SERVER = "192.168.1.195"   #Achtung: aktuelle Adresse des Brokers!
 
 BAUGRUPPE = "Kontrollpanel" # Info für JSON
 
@@ -330,7 +330,7 @@ def display_off(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerh
     tft.sleep_mode(True)
     print("Display off")
     
-def timestamp():
+def timestamp_generator():
     clock = utime.localtime()
     timestamp = f"{clock[0]}-{clock[1]}-{clock[2]}T{clock[3]}:{clock[4]}:{clock[5]}_MEZ"
     
@@ -391,7 +391,7 @@ utime.sleep(1)
 mqtt_relais.connect() 
 mqtt_relais.subscribe(MQTT_TOPIC_relais)
 log_display("- MQTT relais")
-log("MQTT", "mqtt relais verbunden")
+log("MQTT", "relais verbunden")
 print("MQTT relais verbunden!")
 
 utime.sleep(1)
@@ -410,6 +410,7 @@ utime.sleep(1)
 
 display_off()
 
+log("Systemstatus", "Controller online, start loop")
 
 #---------------- Hauptprogramm ------------------------------------------- 
 while True:
@@ -445,7 +446,7 @@ while True:
             temp = aht.temperature()
             hum = aht.humidity()
             
-            timestamp = timestamp()
+            timestamp = timestamp_generator()
             
             # Mittelwerte bilden 
             mid_temp, temp_list = mittelwert(temp, temp_list)

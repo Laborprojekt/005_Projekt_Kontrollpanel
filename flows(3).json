@@ -20,7 +20,7 @@
         "label": "reboot",
         "tooltip": "",
         "color": "",
-        "bgcolor": "",
+        "bgcolor": "#611E26",
         "className": "",
         "icon": "",
         "payload": "{\"reboot\" : 1}",
@@ -49,7 +49,7 @@
         "correl": "",
         "expiry": "",
         "broker": "ac1277ea078c48d8",
-        "x": 850,
+        "x": 1010,
         "y": 100,
         "wires": []
     },
@@ -235,7 +235,7 @@
         "correl": "",
         "expiry": "",
         "broker": "ac1277ea078c48d8",
-        "x": 950,
+        "x": 1030,
         "y": 500,
         "wires": []
     },
@@ -245,11 +245,11 @@
         "z": "d70d78d3a81865f6",
         "name": "",
         "group": "bc0d8e012af67377",
-        "order": 12,
+        "order": 14,
         "width": 8,
         "height": 1,
         "passthru": false,
-        "label": "button",
+        "label": "Shelly Relais toggle",
         "tooltip": "",
         "color": "",
         "bgcolor": "",
@@ -259,7 +259,7 @@
         "payloadType": "json",
         "topic": "topic",
         "topicType": "msg",
-        "x": 390,
+        "x": 430,
         "y": 500,
         "wires": [
             [
@@ -272,11 +272,11 @@
         "type": "ui_switch",
         "z": "d70d78d3a81865f6",
         "name": "",
-        "label": "switch",
+        "label": "Shelly Relais switch",
         "tooltip": "",
         "group": "bc0d8e012af67377",
-        "order": 11,
-        "width": 8,
+        "order": 12,
+        "width": 6,
         "height": 1,
         "passthru": true,
         "decouple": "false",
@@ -293,7 +293,7 @@
         "offcolor": "",
         "animate": false,
         "className": "",
-        "x": 390,
+        "x": 440,
         "y": 560,
         "wires": [
             [
@@ -406,7 +406,7 @@
         "z": "d70d78d3a81865f6",
         "name": "",
         "group": "63fda0049e588b62",
-        "order": 2,
+        "order": 3,
         "width": 4,
         "height": 4,
         "gtype": "donut",
@@ -434,7 +434,7 @@
         "z": "d70d78d3a81865f6",
         "name": "",
         "group": "63fda0049e588b62",
-        "order": 3,
+        "order": 4,
         "width": 4,
         "height": 4,
         "label": "Temperatur",
@@ -478,7 +478,7 @@
         "z": "d70d78d3a81865f6",
         "name": "",
         "group": "63fda0049e588b62",
-        "order": 4,
+        "order": 5,
         "width": 4,
         "height": 4,
         "label": "Humidity",
@@ -522,7 +522,7 @@
         "z": "d70d78d3a81865f6",
         "name": "",
         "group": "63fda0049e588b62",
-        "order": 1,
+        "order": 2,
         "width": 4,
         "height": 4,
         "gtype": "donut",
@@ -548,7 +548,7 @@
         "id": "b70f85949ba76d0a",
         "type": "function",
         "z": "d70d78d3a81865f6",
-        "name": "write_database",
+        "name": "write_database_Raumwerte",
         "func": "let temperature = msg.payload.Sensorwerte.temp;\nlet humidity = msg.payload.Sensorwerte.hum;\n\n\n// Timetstamp\nconst zeit = new Date; \nzeit.setHours(zeit.getHours() +1);   //1 Stunde Zeitverschiebung \nlet timestamp = zeit.toISOString().replace(\"T\", \" \").substring(0, 19); \n\n//let timestamp = new Date().toISOString().replace(\"T\", \" \").substring(0, 19);\n\nmsg.topic = \"INSERT INTO raumdaten (temperature, humidity, timestamp) VALUES (?, ?, ?)\";\nmsg.payload = [temperature, humidity, timestamp];\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
@@ -556,7 +556,7 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 620,
+        "x": 640,
         "y": 960,
         "wires": [
             [
@@ -608,10 +608,11 @@
         "rh": 0,
         "inputs": 0,
         "x": 390,
-        "y": 1000,
+        "y": 1020,
         "wires": [
             [
-                "c076fa69725e7493"
+                "c076fa69725e7493",
+                "function_store"
             ]
         ]
     },
@@ -619,16 +620,16 @@
         "id": "c076fa69725e7493",
         "type": "function",
         "z": "d70d78d3a81865f6",
-        "name": "write_database",
-        "func": "let eventtype = msg.payload.log.type;\nlet event_text = msg.payload.log.text;\n\n\n// Timetstamp\nconst zeit = new Date; \nzeit.setHours(zeit.getHours() +1);   //1 Stunde Zeitverschiebung \nlet timestamp = zeit.toISOString().replace(\"T\", \" \").substring(0, 19); \n\n//let timestamp = new Date().toISOString().replace(\"T\", \" \").substring(0, 19);\n\nmsg.topic = \"INSERT INTO logs (eventtype, event_text, timestamp) VALUES (?, ?, ?)\";\nmsg.payload = [eventtype, event_text, timestamp];\n\nreturn msg;",
+        "name": "write_database_logs",
+        "func": "let eventtype = msg.payload.eventtype;\nlet event_text = msg.payload.event_text;\n\n\n// Timetstamp\nconst zeit = new Date; \nzeit.setHours(zeit.getHours() +1);   //1 Stunde Zeitverschiebung \nlet timestamp = zeit.toISOString().replace(\"T\", \" \").substring(0, 19); \n\n//let timestamp = new Date().toISOString().replace(\"T\", \" \").substring(0, 19);\n\nmsg.topic = \"INSERT INTO logs (eventtype, event_text, timestamp) VALUES (?, ?, ?)\";\nmsg.payload = [eventtype, event_text, timestamp];\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 600,
-        "y": 1000,
+        "x": 620,
+        "y": 1020,
         "wires": [
             [
                 "01bae2fcfebca8f5"
@@ -649,7 +650,7 @@
         "rh": 0,
         "inputs": 0,
         "x": 390,
-        "y": 1300,
+        "y": 1360,
         "wires": [
             [
                 "0344463a66b36051",
@@ -667,7 +668,7 @@
         "id": "0344463a66b36051",
         "type": "function",
         "z": "d70d78d3a81865f6",
-        "name": "write_database",
+        "name": "write_database_shelly",
         "func": "let mac_address = msg.payload.mac;\nlet voltage = msg.payload.voltage;\nlet current = msg.payload.current;\nlet power = msg.payload.power;\nlet energy = msg.payload.energy;\nlet temp = msg.payload.temp;\nlet switch_state = msg.payload.switch_state;\n\n\n// Timetstamp\nconst zeit = new Date; \nzeit.setHours(zeit.getHours() +1);   //1 Stunde Zeitverschiebung \nlet timestamp = zeit.toISOString().replace(\"T\", \" \").substring(0, 19); \n\n//let timestamp = new Date().toISOString().replace(\"T\", \" \").substring(0, 19);\n\nmsg.topic = \"INSERT INTO energiedaten (mac_address, voltage, current, power, energy, temp, switch_state, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)\";\nmsg.payload = [mac_address, voltage, current, power, energy, temp, switch_state, timestamp];\n\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
@@ -675,8 +676,8 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 600,
-        "y": 1300,
+        "x": 620,
+        "y": 1360,
         "wires": [
             [
                 "01bae2fcfebca8f5"
@@ -696,7 +697,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 1380,
+        "y": 1440,
         "wires": [
             [
                 "e97d0e77f2da8bcd",
@@ -718,7 +719,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 1540,
+        "y": 1600,
         "wires": [
             [
                 "74f2b735b149c338",
@@ -740,7 +741,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 1380,
+        "y": 1440,
         "wires": []
     },
     {
@@ -756,7 +757,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 1540,
+        "y": 1600,
         "wires": []
     },
     {
@@ -784,7 +785,7 @@
         "diff": false,
         "className": "",
         "x": 790,
-        "y": 1440,
+        "y": 1500,
         "wires": []
     },
     {
@@ -826,7 +827,7 @@
         "useDifferentColor": false,
         "className": "",
         "x": 790,
-        "y": 1620,
+        "y": 1680,
         "wires": [
             []
         ]
@@ -870,7 +871,7 @@
         "useDifferentColor": false,
         "className": "",
         "x": 790,
-        "y": 1480,
+        "y": 1540,
         "wires": [
             []
         ]
@@ -900,7 +901,7 @@
         "diff": false,
         "className": "",
         "x": 790,
-        "y": 1580,
+        "y": 1640,
         "wires": []
     },
     {
@@ -916,7 +917,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 1700,
+        "y": 1760,
         "wires": [
             [
                 "93a203d11da032e5",
@@ -938,7 +939,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 1860,
+        "y": 1920,
         "wires": [
             [
                 "aa1a197b345dd14f",
@@ -960,7 +961,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 1700,
+        "y": 1760,
         "wires": []
     },
     {
@@ -976,7 +977,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 1860,
+        "y": 1920,
         "wires": []
     },
     {
@@ -1004,7 +1005,7 @@
         "diff": false,
         "className": "",
         "x": 780,
-        "y": 1760,
+        "y": 1820,
         "wires": []
     },
     {
@@ -1046,7 +1047,7 @@
         "useDifferentColor": false,
         "className": "",
         "x": 790,
-        "y": 1940,
+        "y": 2000,
         "wires": [
             []
         ]
@@ -1090,7 +1091,7 @@
         "useDifferentColor": false,
         "className": "",
         "x": 780,
-        "y": 1800,
+        "y": 1860,
         "wires": [
             []
         ]
@@ -1108,7 +1109,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 2020,
+        "y": 2080,
         "wires": [
             [
                 "cdf30794999a8da8",
@@ -1130,7 +1131,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 2200,
+        "y": 2260,
         "wires": [
             [
                 "6ae71891cdbb6ffd",
@@ -1151,7 +1152,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 2020,
+        "y": 2080,
         "wires": []
     },
     {
@@ -1167,7 +1168,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 2200,
+        "y": 2260,
         "wires": []
     },
     {
@@ -1195,7 +1196,7 @@
         "diff": false,
         "className": "",
         "x": 800,
-        "y": 2080,
+        "y": 2140,
         "wires": []
     },
     {
@@ -1237,7 +1238,7 @@
         "useDifferentColor": false,
         "className": "",
         "x": 800,
-        "y": 2120,
+        "y": 2180,
         "wires": [
             []
         ]
@@ -1255,7 +1256,7 @@
         "finalize": "",
         "libs": [],
         "x": 590,
-        "y": 1200,
+        "y": 1260,
         "wires": [
             [
                 "67c170046afd26bd",
@@ -1276,7 +1277,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 790,
-        "y": 1200,
+        "y": 1260,
         "wires": []
     },
     {
@@ -1297,7 +1298,7 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 810,
-        "y": 2260,
+        "y": 2320,
         "wires": []
     },
     {
@@ -1318,7 +1319,7 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 810,
-        "y": 1260,
+        "y": 1320,
         "wires": []
     },
     {
@@ -1339,7 +1340,7 @@
         "fontSize": 16,
         "color": "#000000",
         "x": 820,
-        "y": 1900,
+        "y": 1960,
         "wires": []
     },
     {
@@ -1356,7 +1357,7 @@
         "rh": 0,
         "inputs": 0,
         "x": 410,
-        "y": 1140,
+        "y": 1200,
         "wires": [
             [
                 "97871f268ffcef1a",
@@ -1377,7 +1378,7 @@
         "finalize": "",
         "libs": [],
         "x": 600,
-        "y": 1140,
+        "y": 1200,
         "wires": [
             [
                 "01bae2fcfebca8f5"
@@ -1385,7 +1386,48 @@
         ]
     },
     {
-        "id": "7a741d5d4730d9ea",
+        "id": "function_store",
+        "type": "function",
+        "z": "d70d78d3a81865f6",
+        "name": "log verlauf",
+        "func": "let eventtype = msg.payload.eventtype;\nlet event_text = msg.payload.event_text;\n\n// Verlauf laden oder leeren\nlet history = flow.get('log_History') || [];\n\n\n// Timetstamp\nconst zeit = new Date;\nzeit.setHours(zeit.getHours() + 1);   //1 Stunde Zeitverschiebung \nlet timestamp = zeit.toISOString().replace(\"T\", \" \").substring(0, 19); \n\n// Neue Nachricht hinzufügen\nhistory.unshift(`${timestamp} : ${eventtype} -> ${event_text}`);\n\n// Maximal 4 Einträge behalten\nif (history.length > 6) {\n    history.pop();\n}\n\n// Verlauf speichern\nflow.set('log_History', history);\n\n// Für Dashboard ausgeben\nmsg.payload = history;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 1080,
+        "wires": [
+            [
+                "ui_template"
+            ]
+        ]
+    },
+    {
+        "id": "ui_template",
+        "type": "ui_template",
+        "z": "d70d78d3a81865f6",
+        "group": "dashboard_group",
+        "name": "MQTT Verlauf",
+        "order": 2,
+        "width": 12,
+        "height": 8,
+        "format": "<h4>LOG History</h4>\n<ul>\n  <li ng-repeat=\"item in msg.payload track by $index\">\n    {{item}}\n  </li>\n</ul>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1000,
+        "y": 1080,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "1eb6032337fdd64d",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1395,7 +1437,7 @@
         "height": 1
     },
     {
-        "id": "3251442dc7512594",
+        "id": "8d12e04421520f27",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1405,7 +1447,7 @@
         "height": 1
     },
     {
-        "id": "7e2732fa86473901",
+        "id": "594e0b2a81a8eff5",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1415,7 +1457,37 @@
         "height": 1
     },
     {
-        "id": "9e291cca7ddfa0be",
+        "id": "85d5f98a7bc34132",
+        "type": "ui_spacer",
+        "z": "d70d78d3a81865f6",
+        "name": "spacer",
+        "group": "bc0d8e012af67377",
+        "order": 11,
+        "width": 1,
+        "height": 1
+    },
+    {
+        "id": "6f8891f11f320d69",
+        "type": "ui_spacer",
+        "z": "d70d78d3a81865f6",
+        "name": "spacer",
+        "group": "bc0d8e012af67377",
+        "order": 13,
+        "width": 1,
+        "height": 1
+    },
+    {
+        "id": "f26e052057895d0f",
+        "type": "ui_spacer",
+        "z": "d70d78d3a81865f6",
+        "name": "spacer",
+        "group": "63fda0049e588b62",
+        "order": 1,
+        "width": 8,
+        "height": 1
+    },
+    {
+        "id": "8ee40ba2394745f9",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1425,7 +1497,7 @@
         "height": 1
     },
     {
-        "id": "ac3ba327ce90a37b",
+        "id": "ce1ea97f10883a36",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1435,7 +1507,7 @@
         "height": 1
     },
     {
-        "id": "3cb4e5505cf23dcb",
+        "id": "8738eeacd814f463",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1445,7 +1517,7 @@
         "height": 1
     },
     {
-        "id": "1039fd372158de50",
+        "id": "11d939396c3c465b",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1455,7 +1527,7 @@
         "height": 1
     },
     {
-        "id": "efaa4df72c5cf8eb",
+        "id": "dd784bd6e68c55b0",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1465,7 +1537,7 @@
         "height": 1
     },
     {
-        "id": "1f44e286265b198d",
+        "id": "d5970e0fc4d39e2c",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1475,7 +1547,7 @@
         "height": 1
     },
     {
-        "id": "a873731ce6eaec67",
+        "id": "d47b8cedb401af5f",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1485,7 +1557,7 @@
         "height": 1
     },
     {
-        "id": "d6e992cab3200d69",
+        "id": "902f9b51bf47e06b",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1495,7 +1567,7 @@
         "height": 1
     },
     {
-        "id": "4fd91c02520068e0",
+        "id": "dd8013140e986611",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1505,7 +1577,7 @@
         "height": 1
     },
     {
-        "id": "3485ae9247c02c87",
+        "id": "8e18525915a74003",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1515,7 +1587,7 @@
         "height": 1
     },
     {
-        "id": "57396e2bf15db078",
+        "id": "dcc19f02be91f4b7",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
@@ -1525,13 +1597,23 @@
         "height": 1
     },
     {
-        "id": "e57f0ca37d6e0761",
+        "id": "84fb2df474c2d765",
         "type": "ui_spacer",
         "z": "d70d78d3a81865f6",
         "name": "spacer",
         "group": "b4e8701da0029680",
         "order": 19,
         "width": 1,
+        "height": 1
+    },
+    {
+        "id": "91f5daf35bd81380",
+        "type": "ui_spacer",
+        "z": "d70d78d3a81865f6",
+        "name": "spacer",
+        "group": "dashboard_group",
+        "order": 1,
+        "width": 12,
         "height": 1
     },
     {
@@ -1634,6 +1716,17 @@
         "name": "Energiedaten",
         "tab": "bac43136f601d56a",
         "order": 3,
+        "disp": true,
+        "width": 12,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "dashboard_group",
+        "type": "ui_group",
+        "name": "Log Anzeige",
+        "tab": "bac43136f601d56a",
+        "order": 4,
         "disp": true,
         "width": 12,
         "collapse": false,

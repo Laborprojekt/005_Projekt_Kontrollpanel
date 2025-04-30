@@ -1,0 +1,10 @@
+﻿"Symbol";"Value";"Unit";
+"TraceParts.PartNumber";"90-27052019-049203";"";
+"REFERENCE";"5SL61166";"";
+"TraceParts.PartTitle";"Leitungsschutzschalter";"";
+"TraceParts.InstanceId";"90-27052019-049203CJN66O7NI43MDPFAY8YAEUC74";"";
+"SUPPLIER";"SIEMENS";"";
+"DESIGN";"Leitungsschutzschalter 230/400V 6kA, 1-polig, B, 16A";"";
+"TRACEPARTS";"TRACEPARTS";"";
+"TraceParts.PartLanguage";"de";"";
+"TraceParts.PartVersion";"1.0.0";"";

@@ -1,0 +1,10 @@
+﻿"Symbol";"Value";"Unit";
+"TraceParts.PartNumber";"90-29032019-048757";"";
+"REFERENCE";"5SU13566KK10";"";
+"TraceParts.PartTitle";"Kombination FI-Schalter/Leitungsschutzschalter";"";
+"TraceParts.InstanceId";"90-29032019-048757C5S6PIBD8UOJHH2LHYNZRLJ4W";"";
+"SUPPLIER";"SIEMENS";"";
+"DESIGN";"FI/LS-Schalter, 6 kA, 1P+N, Typ A, 30 mA, B-Char, In: 10 A, Un AC: 230 V";"";
+"TRACEPARTS";"TRACEPARTS";"";
+"TraceParts.PartLanguage";"de";"";
+"TraceParts.PartVersion";"1.0.0";"";

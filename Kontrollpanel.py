@@ -37,6 +37,7 @@ taster_schuko12 = Pin(37, Pin.IN, Pin.PULL_DOWN)
 taster_schuko34 = Pin(39, Pin.IN, Pin.PULL_DOWN)
 
 i2c = SoftI2C(sda = 41, scl = 42)
+aht = aht10.AHT10(i2c = i2c)
 
 ########## SPI Bus konfigurieren ##########
 
@@ -62,8 +63,13 @@ tft = st7789.ST7789(
         backlight=Pin(16, Pin.OUT),
         rotation=1)
 
-#---------------- Variablen ----------------#
+#---------------- Variablen / Konstanten ----------------#
 
+# Allgemein
+cycle_time_ms = 0
+
+
+# Variablen Steckdose
 reboot = False
 schuko12 = False
 schuko34 = False
@@ -76,26 +82,30 @@ schuko4 = False
 time_irq_schuko12 = 0
 time_irq_schuko34 = 0
 
+INTERVALL_MS_TASTER = 2000
 
+
+# Energiemessung
+shelly_energy = {}
 voltage, current, power, energy, mid_temp, mid_hum  = 0, 0, 0, 0, 0, 0
 prev_voltage, prev_current, prev_power, prev_energy, prev_temp, prev_hum  = 0, 0, 0, 0, 0, 0
 
-shelly_energy = {}
 
-cycle_time_ms = 0
-
-# Sensor
-aht = aht10.AHT10(i2c = i2c)
-
-# Allgemein
+# AHT
 temp_list = []
 hum_list = []
 last_aht_check = 0
 INTERVALL_MS_AHT = 10000
 
-INTERVALL_MS_TASTER = 2000
 
-# Display
+# Display Variablen
+display_on_timestamp_ms = 0 # Timestamp für automatische abschaltung
+display_state = False
+display_activation_time = 0 # Entprellung interrupt
+display_update_time = 0 # Timestamp der letzten aktualisierung
+
+
+# Display Konstanten
 SNOWFLAKE ="*****************"
 BOOT = "boot successfull"
 CLEAR = "                             "
@@ -104,10 +114,6 @@ START_TEXT_MEASUREMENT = 20
 SECUNDARY_TEXT = 140 # x
 INTERVALL_MS_DISPLAY_UPDATE = 6000 # Shelly sendet alle 10s Daten
 DISPLAY_SHUTDOWN_TIME_MS = 180000 # Zeit nach der sich das Display automatisch abschaltet
-display_on_timestamp_ms = 0 # Timestamp für automatische abschaltung
-display_state = False
-display_activation_time = 0 # Entprellung interrupt
-display_update_time = 0 # Timestamp der letzten aktualisierung
 
 
 #---------------- MQTT-Konfiguration ----------------#
@@ -131,7 +137,9 @@ MQTT_SERVER = "192.168.188.26"   #Achtung: aktuelle Adresse des Brokers!
 
 BAUGRUPPE = "Kontrollpanel" # Info für JSON
 
-#---------------- Funktion zur Datenauswertung ------------- 
+#---------------- Funktion zur Datenauswertung -------------
+
+# Liest die Schaltbefehle auf dem Node-Red UI aus und setzt die Schaltparameter für die Hauptsschleife
 def sub_relais(topic, msg):
     global reboot, schuko12, schuko34, schuko1, schuko2, schuko3, schuko4
     
@@ -142,25 +150,39 @@ def sub_relais(topic, msg):
 
     try:
         reboot_value = daten.get("reboot")
+        group_off_value = daten.get("group_off")
+        group_on_value = daten.get("group_on")
         schuko12_value = daten.get("schuko12")
         schuko34_value = daten.get("schuko34")
         schuko1_value = daten.get("schuko1")
         schuko2_value = daten.get("schuko2")
         schuko3_value = daten.get("schuko3")
         schuko4_value = daten.get("schuko4")
-        print(reboot_value)
-        print(schuko12_value)
-        print(schuko34_value)
-        print(schuko1_value)
-        print(schuko2_value)
-        print(schuko3_value)
-        print(schuko4_value)
+        group_on_value = daten.get("group_on")
+        print(reboot_value, group_off_value, group_on_value, schuko12_value, schuko34_value, schuko1_value, schuko2_value, schuko3_value, schuko4_value)
+
     except:
         pass
   
-
+    # Setzt bei Bedarf die Variablen der Relais
     if reboot_value:
         reboot = not reboot
+        
+    if group_off_value:
+        schuko12 = False
+        schuko34 = False
+        schuko1 = False
+        schuko2 = False
+        schuko3 = False
+        schuko4 = False
+    
+    if group_on_value:
+        schuko12 = True
+        schuko34 = True
+        schuko1 = True
+        schuko2 = True
+        schuko3 = True
+        schuko4 = True
     
     if schuko12_value:
         schuko12 = not schuko12
@@ -185,8 +207,9 @@ def sub_relais(topic, msg):
         
     if schuko4_value:
         schuko4 = not schuko4
-        
-    
+
+                
+# Liest die relevanten Informationen aus den Shelly Energiedaten aus, die per MQTT empfangen wurden
 def sub_shelly(topic, msg):  
     daten = ujson.loads(msg) 
     
@@ -201,6 +224,7 @@ def sub_shelly(topic, msg):
     print(shelly_energy, voltage, current, power, energy)
 
 
+# Sendet belibige Daten an den MQTT Broker
 def mqtt_publish(json_data, topic):
     
     # MQTT-Broker Adresse
@@ -215,7 +239,7 @@ def mqtt_publish(json_data, topic):
 
     client.disconnect()
     
-
+# Interrupt Handler für den Taster der Steckdosengruppe 1
 def schuko12_irq(pin):
     global schuko12, schuko1, schuko2, time_irq_schuko12
     timestamp = utime.ticks_ms()
@@ -230,8 +254,8 @@ def schuko12_irq(pin):
         
         time_irq_schuko12 = timestamp
    
-   
-def schuko34_irq(pin):
+# Interrupt Handler für den Taster der Steckdosengruppe 2
+def schuko34_irq(pin): 
     global schuko34, schuko3, schuko4, time_irq_schuko34
     timestamp = utime.ticks_ms()
     
@@ -245,7 +269,7 @@ def schuko34_irq(pin):
         
         time_irq_schuko34 = timestamp
      
-     
+# Ermittlung der Mittelwerte für die AHT Messwerte, über 10 Messzyklen    
 def mittelwert (value, value_list):
     value_sum = 0
     
@@ -256,7 +280,7 @@ def mittelwert (value, value_list):
     if len_list > 10:
         value_list.pop(0)
     
-    copy_list = value_list[:]
+    copy_list = value_list[:] # erzeugt eine pyhsische kopie Liste
     
     if len_list >= 3:
         copy_list.sort
@@ -270,7 +294,7 @@ def mittelwert (value, value_list):
      
     return mittelwert, value_list
 
-
+# Baut das JSON für die AHT Messwerte zusammen
 def store_data(timestamp, mid_temp, mid_hum):
 
     json_raw = {
@@ -286,11 +310,13 @@ def store_data(timestamp, mid_temp, mid_hum):
     json_data = ujson.dumps(json_raw)
 
     return json_data
-    
+
+# Überscheibt den Display Bereich der Boot Message
 def clear_boot():
     tft.fill_rect(0,105,320,25, st7789.BLACK) #x,y,width,height
-    
-    
+  
+  
+# Schreibt die Boot Logs aufs Display
 def log_display(text):
     
     tft.text(font, CLEAR , START_TEXT, 90, st7789.WHITE, st7789.BLACK)
@@ -299,7 +325,8 @@ def log_display(text):
     tft.text(font, CLEAR , START_TEXT, 120, st7789.WHITE, st7789.BLACK)
     tft.text(font, text , START_TEXT, 120, st7789.WHITE, st7789.BLACK)
     
-    
+
+# Schaltet das Display Statusabhänig ein und aus
 def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerhalb des interrupt verwenden zu können
     
     global display_state
@@ -307,6 +334,7 @@ def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außer
     
     time = utime.ticks_ms()
     
+    # Entprellung, dass das Display nur alle 3s neu aktiviert werden kann
     if time - display_activation_time >= 3000:
         
         if tft.backlight.value() == 0:
@@ -319,8 +347,9 @@ def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außer
             
         else:
             display_off()
-        
-def display_off(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerhalb des interrupt verwenden zu können
+
+# Schaltet das Display aus. Ausgelagert, da er an mehreren Stellen benötigt wird, unabhänig von show_display()
+def display_off():
     
     global display_state
     
@@ -329,13 +358,15 @@ def display_off(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außerh
     tft.fill(st7789.BLACK)
     tft.sleep_mode(True)
     print("Display off")
-    
+
+# Einheitliche Funktion um genaue Zeitstempel zu generieren
 def timestamp_generator():
     clock = utime.localtime()
     timestamp = f"{clock[0]}-{clock[1]}-{clock[2]}T{clock[3]}:{clock[4]}:{clock[5]}_MEZ"
     
     return timestamp
 
+# Baut JSON zum ablegen der Logs in einer Datenbank zusammen
 def log(eventtype, log_message):
     
     global MQTT_TOPIC_LOG
@@ -351,6 +382,8 @@ def log(eventtype, log_message):
     
 
 #---------------- Funktion WIFI -------------------------------------------
+
+# Stellt eine W-Lan Verbindung her
 def connectWIFI(): 
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True) 
@@ -363,8 +396,6 @@ def connectWIFI():
 
 #---------------- Interrupts ---------------------------------------------- 
 taster_display.irq(trigger = Pin.IRQ_RISING, handler = show_display)
-#taster_display.irq(trigger = Pin.IRQ_RISING or Pin.IRQ_FALLING, handler = show_display)
-#taster_display.irq(trigger = Pin.IRQ_FALLING, handler = display_off)
 taster_schuko12.irq(trigger = Pin.IRQ_FALLING, handler = schuko12_irq)
 taster_schuko34.irq(trigger = Pin.IRQ_FALLING, handler = schuko34_irq)
 
@@ -387,18 +418,18 @@ connectWIFI()
 
 mqtt_relais = MQTTClient(CLIENT_ID_relais, MQTT_SERVER)
 mqtt_relais.set_callback(sub_relais) 
-utime.sleep(1) 
+utime.sleep(0.5) 
 mqtt_relais.connect() 
 mqtt_relais.subscribe(MQTT_TOPIC_relais)
 log_display("- MQTT relais")
 log("MQTT", "relais verbunden")
 print("MQTT relais verbunden!")
 
-utime.sleep(1)
+utime.sleep(0.5)
 
 mqtt_shelly = MQTTClient(CLIENT_ID_shelly, MQTT_SERVER)
 mqtt_shelly.set_callback(sub_shelly) 
-utime.sleep(1) 
+utime.sleep(0.5) 
 mqtt_shelly.connect() 
 mqtt_shelly.subscribe(MQTT_TOPIC_shelly)
 
@@ -414,7 +445,7 @@ log("Systemstatus", "Controller online, start loop")
 
 #---------------- Hauptprogramm ------------------------------------------- 
 while True:
-    cycle_time_ms = utime.ticks_ms() # Zykluszeit
+    cycle_time_ms = utime.ticks_ms() # Zykluszeitstempel 
     
     try:
         mqtt_relais.check_msg()
@@ -462,12 +493,14 @@ while True:
         
 #---------------- Display einschalten -------------------------------------
     try:
+        # Wird nur im angegeben Intervall von INTERVALL_MS_DISPLAY_UPDATE aufgeruden,sofern das Display eingschaltet sein soll
         if display_state == True and cycle_time_ms - display_update_time >= INTERVALL_MS_DISPLAY_UPDATE:
             
             if cycle_time_ms - display_on_timestamp_ms <= DISPLAY_SHUTDOWN_TIME_MS: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
             
                 initial_run = False
                 
+                # Wird nur im ersten Durchlauf aufgerufen
                 if tft.backlight.value() == 0:
                     display_on_timestamp_ms = utime.ticks_ms()
                 
@@ -475,10 +508,14 @@ while True:
                     tft.sleep_mode(False)
                     tft.backlight.value(1)
                     
+                    # Messwerte für den ersten durchlauf setzten, um später displayaktualisierungen zu minimieren
                     initial_run = True 
                     #initial_run = prev_temp == None # ändert den initial run parameter, wenn das display vorher ausgeschaltet war
                 
+                
                 # ----- Messwerte anzeigen und aktulisieren -----
+                
+                # Messwerte werden nur im ersten Durchlauf oder bei einer Änderung neu auf das Display geschrieben
                 if initial_run or voltage != prev_voltage:
                     prev_voltage = voltage
                     # Extra Leerzeichen sind zum überschreiben, falls vorheriger Wert mehr Zeichen hatte

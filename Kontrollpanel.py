@@ -224,7 +224,7 @@ def sub_shelly(topic, msg):
     print(shelly_energy, voltage, current, power, energy)
 
 
-# Sendet belibige Daten an den MQTT Broker
+# Sendet beliebige Daten an den MQTT Broker
 def mqtt_publish(json_data, topic):
     
     # MQTT-Broker Adresse

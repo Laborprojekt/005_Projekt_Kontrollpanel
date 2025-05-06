@@ -1,4 +1,4 @@
-########## Aktualisierte Topics 02.05.25 ##########
+// ########## Aktualisierte Topics 02.05.25 ##########
 
 // Copyright 2021 Allterco Robotics EOOD
 //
@@ -41,7 +41,7 @@ function MQTTAnnounceSwitch(status) {
 
 
 
-########## ALTE TOPICS ##########
+// ########## ALTE TOPICS ##########
 
 
 // Copyright 2021 Allterco Robotics EOOD

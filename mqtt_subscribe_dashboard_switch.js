@@ -1,4 +1,4 @@
-########## Aktualisierte Topics 02.05.25 ##########
+// ########## Aktualisierte Topics 02.05.25 ##########
 
 MQTT.subscribe("node-red_shelly_button", function(topic, message) {
   print("Topic: " + topic);
@@ -19,7 +19,7 @@ MQTT.subscribe("node-red_shelly_button", function(topic, message) {
 });
 
 
-########## ALTE TOPICS ##########
+// ########## ALTE TOPICS ##########
 
 MQTT.subscribe("shelly_switch_dashboard", function(topic, message) {
   print("Topic: " + topic);

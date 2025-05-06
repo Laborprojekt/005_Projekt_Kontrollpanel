@@ -1,4 +1,4 @@
-########## Aktualisierte Topics 02.05.25 ##########
+// ########## Aktualisierte Topics 02.05.25 ##########
 
 let mqtt_topic = "shelly_energydata";
 
@@ -59,7 +59,7 @@ function sendData() {
 };
 
 sendData();
-########## ALTE TOPICS ##########
+// ########## ALTE TOPICS ##########
 
 
 let mqtt_topic = "shelly";

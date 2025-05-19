@@ -1,6 +1,6 @@
 '''
 Name:           Kontrollpanel
-Datum:          05.05.2025
+Datum:          12.05.2025
 Version:        1.0
 
 Entwickler:     Eberlei
@@ -35,6 +35,7 @@ taster_schuko12 = Pin(36, Pin.IN)
 taster_schuko34 = Pin(37, Pin.IN)
 
 i2c = SoftI2C(sda = 10, scl = 9)
+aht = aht10.AHT10(i2c, address=0x38)
 
 ########## SPI Bus konfigurieren ##########
 
@@ -279,6 +280,7 @@ def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außer
     
     global display_state
     global display_activation_time
+    global display_on_timestamp_ms
     
     time = utime.ticks_ms()
     
@@ -292,8 +294,10 @@ def show_display(pin=0): # Pin =0 hat vordefiniert werte, um die Funktion außer
             print("Display on")
             
             display_activation_time = utime.ticks_ms()
+            display_on_timestamp_ms = utime.ticks_ms()
             
         else:
+            display_activation_time = utime.ticks_ms()
             display_off()
 
 # Schaltet das Display aus. Ausgelagert, da er an mehreren Stellen benötigt wird, unabhänig von show_display()
@@ -425,7 +429,7 @@ while True:
 #---------------- Display einschalten -------------------------------------
     try:
         # Wird nur im angegeben Intervall von INTERVALL_MS_DISPLAY_UPDATE aufgeruden,sofern das Display eingschaltet sein soll
-        if display_state == True and cycle_time_ms - display_update_time >= INTERVALL_MS_DISPLAY_UPDATE:
+        if display_state == True and (cycle_time_ms - display_update_time) >= INTERVALL_MS_DISPLAY_UPDATE:
             
             if cycle_time_ms - display_on_timestamp_ms <= DISPLAY_SHUTDOWN_TIME_MS: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
             
@@ -473,6 +477,7 @@ while True:
                     tft.text(font, f"Hum: {mid_hum} %", SECUNDARY_TEXT, 90, st7789.GREEN, st7789.BLACK)
         
             else: # automatische Abschaltung nach 3 Minuten (Änderungsparameter: DISPLAY_SHUTDOWN_TIME_MS)
+                print("else off")
                 display_off() 
         
     except Exception as e:
